@@ -42,11 +42,23 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 REDIS_SSL = os.getenv("REDIS_SSL", "true").lower() == "true"
 
+ENVIRONMENT = os.getenv("ENVIRONMENT", "production")  # development or production
+
 # Allowed domains
 ALLOWED_DOMAINS = [
     r"^https?://([a-zA-Z0-9-]+\.)*cinehub\.top$",
     r"^https?://([a-zA-Z0-9-]+\.)*vidfy\.sbs$",
 ]
+
+# Add development domains if in development mode
+if ENVIRONMENT == "development":
+    ALLOWED_DOMAINS.extend([
+        r"^https?://localhost(:\d+)?$",
+        r"^https?://127\.0\.0\.1(:\d+)?$",
+        r"^https?://0\.0\.0\.0(:\d+)?$",
+    ])
+    print("⚠️ Running in DEVELOPMENT mode - localhost allowed")
+
 ALLOWED_PATTERNS = [re.compile(pattern, re.IGNORECASE) for pattern in ALLOWED_DOMAINS]
 
 # Encryption settings
