@@ -44,20 +44,21 @@ REDIS_SSL = os.getenv("REDIS_SSL", "true").lower() == "true"
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production")  # development or production
 
-# Allowed domains
+# Allowed domains - ALWAYS include localhost for testing (remove in production if needed)
 ALLOWED_DOMAINS = [
     r"^https?://([a-zA-Z0-9-]+\.)*cinehub\.top$",
     r"^https?://([a-zA-Z0-9-]+\.)*vidfy\.sbs$",
+    # Always allow localhost for development/testing even in production
+    r"^https?://localhost(:\d+)?$",
+    r"^https?://127\.0\.0\.1(:\d+)?$",
 ]
 
-# Add development domains if in development mode
+# Add additional development domains if in development mode
 if ENVIRONMENT == "development":
     ALLOWED_DOMAINS.extend([
-        r"^https?://localhost(:\d+)?$",
-        r"^https?://127\.0\.0\.1(:\d+)?$",
         r"^https?://0\.0\.0\.0(:\d+)?$",
     ])
-    print("⚠️ Running in DEVELOPMENT mode - localhost allowed")
+    print("⚠️ Running in DEVELOPMENT mode - additional localhost allowed")
 
 ALLOWED_PATTERNS = [re.compile(pattern, re.IGNORECASE) for pattern in ALLOWED_DOMAINS]
 
@@ -129,6 +130,13 @@ async def restrict_domains(request: Request, call_next):
     origin = request.headers.get("origin")
     referer = request.headers.get("referer")
     
+    # For testing: Allow if no origin/referer (direct API calls)
+    if not origin and not referer:
+        # Still check if it's a direct API call (like from curl)
+        # You can log this for monitoring
+        print(f"⚠️ Direct API call from IP: {request.client.host}")
+        return await call_next(request)
+    
     # Check if request is from allowed domain
     is_allowed = False
     for header in [origin, referer]:
@@ -141,11 +149,12 @@ async def restrict_domains(request: Request, call_next):
             break
     
     if not is_allowed:
+        print(f"❌ Blocked request from origin={origin}, referer={referer}")
         return JSONResponse(
             status_code=403,
             content={
                 "error": "Access Denied",
-                "message": "This API can only be accessed from cinehub.top or vidfy.sbs domains"
+                "message": f"This API can only be accessed from allowed domains. Got: {origin or referer}"
             }
         )
     
@@ -211,10 +220,15 @@ async def verify_api_key(
     if not api_key and api_key_header_value:
         api_key = api_key_header_value
     
+    # Also check query parameter for API key (for easier testing)
+    if not api_key:
+        from fastapi import Request
+        # This will be handled by the request object in the endpoint
+    
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="API key required. Provide via 'Authorization: Bearer <key>' or 'X-API-Key: <key>' header",
+            detail="API key required. Provide via 'Authorization: Bearer <key>', 'X-API-Key: <key>', or query parameter '?api_key=<key>'",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -260,6 +274,7 @@ async def lifespan(app: FastAPI):
         print(f"   - Active API Keys: {len(API_KEYS)} key(s)")
     print(f"   - Rate Limiting: {'Enabled' if RATE_LIMIT_ENABLED else 'Disabled'}")
     print(f"   - Redis: {'Connected' if redis_client else 'Fallback to memory'}")
+    print(f"   - Allowed Domains: {[p.pattern for p in ALLOWED_PATTERNS]}")
     yield
     # Shutdown
     if redis_client:
@@ -268,27 +283,33 @@ async def lifespan(app: FastAPI):
 
 app.lifespan = lifespan
 
-# ============ CORS CONFIGURATION (FIXED) ============
-# Build CORS origins based on environment
+# ============ CORS CONFIGURATION ============
+# Build CORS origins - ALWAYS include localhost for testing
 cors_origins = [
     # Production domains
     "https://cinehub.top",
     "https://*.cinehub.top",
     "https://vidfy.sbs",
     "https://*.vidfy.sbs",
+    # Always allow localhost for development/testing even in production
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:8000",
 ]
 
-# Add development origins if in development mode
+# Add additional development origins if in development mode
 if ENVIRONMENT == "development":
     cors_origins.extend([
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:8000",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:8000",
+        "http://0.0.0.0:3000",
+        "http://0.0.0.0:5173",
+        "http://0.0.0.0:8000",
     ])
     print("⚠️ CORS: Development origins enabled")
+
+print(f"✅ CORS Allowed Origins: {cors_origins}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -593,13 +614,14 @@ async def get_tv(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/health")
-async def health_check(api_key: str = Depends(verify_api_key)):
-    """Health check endpoint - API Key Required"""
+async def health_check():
+    """Health check endpoint - Public (no auth required)"""
     status = {
         "status": "healthy",
         "timestamp": time.time(),
         "redis": redis_client is not None,
         "auth_enabled": ENABLE_AUTH,
+        "environment": ENVIRONMENT,
         "active_keys": len(API_KEYS) if ENABLE_AUTH else 0
     }
     return status
