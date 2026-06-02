@@ -625,6 +625,53 @@ async def health_check():
         "active_keys": len(API_KEYS) if ENABLE_AUTH else 0
     }
     return status
+@app.get("/debug-vidlink/{movie_id}")
+async def debug_vidlink(movie_id: str, api_key: str = Depends(verify_api_key)):
+    """Debug VidLink API connection"""
+    from curl_cffi import requests as curl_requests
+    
+    token = encrypt_token(movie_id)
+    url = f"https://vidlink.pro/api/b/movie/{token}?multiLang=1"
+    
+    results = {
+        "movie_id": movie_id,
+        "token": token,
+        "url": url,
+        "attempts": []
+    }
+    
+    # Try with different impersonations
+    impersonations = ["chrome110", "chrome120", "safari15_5", "edge101"]
+    
+    for impersonate in impersonations:
+        try:
+            print(f"Trying with impersonate: {impersonate}")
+            response = curl_requests.get(
+                url, 
+                headers=DEFAULT_HEADERS, 
+                impersonate=impersonate, 
+                timeout=30
+            )
+            
+            results["attempts"].append({
+                "impersonate": impersonate,
+                "status": response.status_code,
+                "has_sources": bool(response.json().get('sources')) if response.status_code == 200 else False
+            })
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('sources'):
+                    results["success"] = True
+                    results["sources_count"] = len(data['sources'])
+                    return results
+        except Exception as e:
+            results["attempts"].append({
+                "impersonate": impersonate,
+                "error": str(e)
+            })
+    
+    return results
 
 if __name__ == "__main__":
     import uvicorn
