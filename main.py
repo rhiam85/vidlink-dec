@@ -268,18 +268,36 @@ async def lifespan(app: FastAPI):
 
 app.lifespan = lifespan
 
-# ============ CORS CONFIGURATION ============
+# ============ CORS CONFIGURATION (FIXED) ============
+# Build CORS origins based on environment
+cors_origins = [
+    # Production domains
+    "https://cinehub.top",
+    "https://*.cinehub.top",
+    "https://vidfy.sbs",
+    "https://*.vidfy.sbs",
+]
+
+# Add development origins if in development mode
+if ENVIRONMENT == "development":
+    cors_origins.extend([
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:8000",
+    ])
+    print("⚠️ CORS: Development origins enabled")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://cinehub.top",
-        "https://*.cinehub.top",
-        "https://vidfy.sbs",
-        "https://*.vidfy.sbs",
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["GET"],  # Only allow GET methods
+    allow_methods=["GET", "OPTIONS"],  # Added OPTIONS for preflight requests
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=600,  # Cache preflight requests for 10 minutes
 )
 
 # ============ HELPER FUNCTIONS ============
