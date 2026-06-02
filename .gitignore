@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv
+env/
+venv/
+ENV/
+dist/
+build/
+*.egg-info/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+*.db
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Secrets and certificates
+*.pem
+*.key
+*.crt
+*.cert
+secrets/
+
+# Redis
+dump.rdb
+appendonly.aof
+
+# Application specific
+*.pid
+*.tmp
+*.temp
+*.bak
+
+# OS files
+Thumbs.db
+desktop.ini
