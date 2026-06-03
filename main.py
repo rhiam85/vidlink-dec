@@ -339,16 +339,59 @@ async def home():
     </html>
     """
 
+#@app.post("/api/token")
+#async def create_token():
+#    """Create a new JWT token for the frontend"""
+#    try:
+#        token_data = create_jwt_token()
+#        return token_data
+#    except Exception as e:
+#        print(f"Token creation error: {e}")
+#        raise HTTPException(status_code=500, detail="Failed to create token")
 @app.post("/api/token")
-async def create_token():
-    """Create a new JWT token for the frontend"""
+async def create_token(request: Request):
+    """Create a new JWT token for the frontend with ad flag"""
     try:
+        # Get referer and origin from request headers
+        referer = request.headers.get("referer", "")
+        origin = request.headers.get("origin", "")
+        
+        # List of domains that are EXEMPT from ads (your domains)
+        AD_EXEMPT_DOMAINS = [
+            "cinehub.top",
+            "vidfy.sbs",
+            "streamx.cinehub.top",
+            "player.vidfy.sbs"
+        ]
+        
+        # Check if request comes from an exempted domain
+        should_show_ad = True  # Default: show ads
+        
+        for domain in AD_EXEMPT_DOMAINS:
+            if domain in referer or domain in origin:
+                should_show_ad = False
+                break
+        
+        # Also check if it's a direct request (no referer/origin)
+        # Direct requests should show ads (they're not from your domains)
+        if not referer and not origin:
+            should_show_ad = True
+        
+        # Create JWT token
         token_data = create_jwt_token()
+        
+        # Add ad flag to the response
+        token_data["should_show_ad"] = should_show_ad
+        
+        # Optional: Add debug logging
+        print(f"🔐 Token created - Referer: {referer or 'None'}, Origin: {origin or 'None'}, Show Ad: {should_show_ad}")
+        
         return token_data
+        
     except Exception as e:
         print(f"Token creation error: {e}")
         raise HTTPException(status_code=500, detail="Failed to create token")
-
+    
 @app.delete("/api/token")
 async def revoke_token(payload: dict = Depends(verify_jwt)):
     """Revoke the current JWT token"""
