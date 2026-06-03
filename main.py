@@ -4,6 +4,7 @@ import base64
 import struct
 import json
 import re
+import secrets  # ← ADD THIS IMPORT
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, Depends, status
@@ -425,6 +426,5 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    import secrets
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
