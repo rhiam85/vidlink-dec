@@ -48,6 +48,8 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 ALLOWED_DOMAINS = [
     r"^https?://([a-zA-Z0-9-]+\.)*cinehub\.top$",
     r"^https?://([a-zA-Z0-9-]+\.)*vidfy\.sbs$",
+     r"^https?://streamx\.cinehub\.top$",      
+    r"^https?://player\.vidfy\.sbs$", 
     r"^https?://localhost(:\d+)?$",
     r"^https?://127\.0\.0\.1(:\d+)?$",
 ]
@@ -257,8 +259,10 @@ app.add_middleware(
     allow_origins=[
         "https://cinehub.top",
         "https://*.cinehub.top",
+        "https://streamx.cinehub.top",
         "https://vidfy.sbs",
         "https://*.vidfy.sbs",
+        "https://player.vidfy.sbs",
         "http://localhost:3000",
         "http://localhost:5173",
     ],
